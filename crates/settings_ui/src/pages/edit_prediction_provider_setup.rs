@@ -1,6 +1,7 @@
 use codestral::{CODESTRAL_API_URL, codestral_api_key_state, codestral_api_url};
 use edit_prediction::{
     ApiKeyState,
+    deepseek_fim::{DEEPSEEK_API_URL, deepseek_api_key_state, deepseek_api_url},
     mercury::{MERCURY_CREDENTIALS_URL, mercury_api_token},
     open_ai_compatible::{open_ai_compatible_api_token, open_ai_compatible_api_url},
 };
@@ -57,6 +58,30 @@ pub(crate) fn render_edit_prediction_setup_page(
                     settings_window
                         .render_sub_page_items_section(
                             codestral_settings().iter().enumerate(),
+                            true,
+                            window,
+                            cx,
+                        )
+                        .into_any_element(),
+                ),
+                window,
+                cx,
+            )
+            .into_any_element(),
+        ),
+        Some(
+            render_api_key_provider(
+                IconName::AiDeepSeek,
+                "DeepSeek",
+                ApiKeyDocs::Link {
+                    dashboard_url: "https://platform.deepseek.com/api_keys".into(),
+                },
+                deepseek_api_key_state(cx),
+                |cx| deepseek_api_url(cx),
+                Some(
+                    settings_window
+                        .render_sub_page_items_section(
+                            deepseek_settings().iter().enumerate(),
                             true,
                             window,
                             cx,
@@ -311,9 +336,10 @@ fn render_api_key_provider(
                         }),
                 )
                 .child(
-                    SettingsInputField::new()
+                    SettingsInputField::new(format!("{}-api-key-input", title))
                         .tab_index(0)
                         .with_placeholder("xxxxxxxxxxxxxxxxxxxx")
+                        .aria_label(format!("{} API Key", title))
                         .on_confirm(move |api_key, _window, cx| {
                             write_key(api_key.filter(|key| !key.is_empty()), cx);
                         }),
@@ -362,6 +388,7 @@ fn ollama_settings() -> Box<[SettingsPageItem]> {
             title: "API URL",
             description: "The base URL of your Ollama server.",
             field: Box::new(SettingField {
+                organization_override: None,
                 pick: |settings| {
                     settings
                         .project
@@ -395,6 +422,7 @@ fn ollama_settings() -> Box<[SettingsPageItem]> {
             title: "Model",
             description: "The Ollama model to use for edit predictions.",
             field: Box::new(SettingField {
+                organization_override: None,
                 pick: |settings| {
                     settings
                         .project
@@ -428,6 +456,7 @@ fn ollama_settings() -> Box<[SettingsPageItem]> {
             title: "Prompt Format",
             description: "The prompt format to use when requesting predictions. Set to Infer to have the format inferred based on the model name.",
             field: Box::new(SettingField {
+                organization_override: None,
                 pick: |settings| {
                     settings
                         .project
@@ -458,6 +487,7 @@ fn ollama_settings() -> Box<[SettingsPageItem]> {
             title: "Max Output Tokens",
             description: "The maximum number of tokens to generate.",
             field: Box::new(SettingField {
+                organization_override: None,
                 pick: |settings| {
                     settings
                         .project
@@ -493,6 +523,7 @@ fn open_ai_compatible_settings() -> Box<[SettingsPageItem]> {
             title: "API URL",
             description: "The URL of your OpenAI-compatible server's completions API.",
             field: Box::new(SettingField {
+                organization_override: None,
                 pick: |settings| {
                     settings
                         .project
@@ -526,6 +557,7 @@ fn open_ai_compatible_settings() -> Box<[SettingsPageItem]> {
             title: "Model",
             description: "The model string to pass to the OpenAI-compatible server.",
             field: Box::new(SettingField {
+                organization_override: None,
                 pick: |settings| {
                     settings
                         .project
@@ -559,6 +591,7 @@ fn open_ai_compatible_settings() -> Box<[SettingsPageItem]> {
             title: "Prompt Format",
             description: "The prompt format to use when requesting predictions. Set to Infer to have the format inferred based on the model name.",
             field: Box::new(SettingField {
+                organization_override: None,
                 pick: |settings| {
                     settings
                         .project
@@ -589,6 +622,7 @@ fn open_ai_compatible_settings() -> Box<[SettingsPageItem]> {
             title: "Max Output Tokens",
             description: "The maximum number of tokens to generate.",
             field: Box::new(SettingField {
+                organization_override: None,
                 pick: |settings| {
                     settings
                         .project
@@ -624,6 +658,7 @@ fn codestral_settings() -> Box<[SettingsPageItem]> {
             title: "API URL",
             description: "The API URL to use for Codestral.",
             field: Box::new(SettingField {
+                organization_override: None,
                 pick: |settings| {
                     settings
                         .project
@@ -657,6 +692,7 @@ fn codestral_settings() -> Box<[SettingsPageItem]> {
             title: "Max Tokens",
             description: "The maximum number of tokens to generate.",
             field: Box::new(SettingField {
+                organization_override: None,
                 pick: |settings| {
                     settings
                         .project
@@ -687,6 +723,7 @@ fn codestral_settings() -> Box<[SettingsPageItem]> {
             title: "Model",
             description: "The Codestral model id to use.",
             field: Box::new(SettingField {
+                organization_override: None,
                 pick: |settings| {
                     settings
                         .project
@@ -712,6 +749,110 @@ fn codestral_settings() -> Box<[SettingsPageItem]> {
             }),
             metadata: Some(Box::new(SettingsFieldMetadata {
                 placeholder: Some("codestral-latest"),
+                ..Default::default()
+            })),
+            files: USER,
+        }),
+    ])
+}
+
+fn deepseek_settings() -> Box<[SettingsPageItem]> {
+    Box::new([
+        SettingsPageItem::SettingItem(SettingItem {
+            title: "API URL",
+            description: "The API URL to use for DeepSeek.",
+            field: Box::new(SettingField {
+                organization_override: None,
+                pick: |settings| {
+                    settings
+                        .project
+                        .all_languages
+                        .edit_predictions
+                        .as_ref()?
+                        .deepseek
+                        .as_ref()?
+                        .api_url
+                        .as_ref()
+                },
+                write: |settings, value, _app: &App| {
+                    settings
+                        .project
+                        .all_languages
+                        .edit_predictions
+                        .get_or_insert_default()
+                        .deepseek
+                        .get_or_insert_default()
+                        .api_url = value;
+                },
+                json_path: Some("edit_predictions.deepseek.api_url"),
+            }),
+            metadata: Some(Box::new(SettingsFieldMetadata {
+                placeholder: Some(DEEPSEEK_API_URL),
+                ..Default::default()
+            })),
+            files: USER,
+        }),
+        SettingsPageItem::SettingItem(SettingItem {
+            title: "Max Tokens",
+            description: "The maximum number of tokens to generate.",
+            field: Box::new(SettingField {
+                organization_override: None,
+                pick: |settings| {
+                    settings
+                        .project
+                        .all_languages
+                        .edit_predictions
+                        .as_ref()?
+                        .deepseek
+                        .as_ref()?
+                        .max_tokens
+                        .as_ref()
+                },
+                write: |settings, value, _app: &App| {
+                    settings
+                        .project
+                        .all_languages
+                        .edit_predictions
+                        .get_or_insert_default()
+                        .deepseek
+                        .get_or_insert_default()
+                        .max_tokens = value;
+                },
+                json_path: Some("edit_predictions.deepseek.max_tokens"),
+            }),
+            metadata: None,
+            files: USER,
+        }),
+        SettingsPageItem::SettingItem(SettingItem {
+            title: "Model",
+            description: "The DeepSeek model id to use.",
+            field: Box::new(SettingField {
+                organization_override: None,
+                pick: |settings| {
+                    settings
+                        .project
+                        .all_languages
+                        .edit_predictions
+                        .as_ref()?
+                        .deepseek
+                        .as_ref()?
+                        .model
+                        .as_ref()
+                },
+                write: |settings, value, _app: &App| {
+                    settings
+                        .project
+                        .all_languages
+                        .edit_predictions
+                        .get_or_insert_default()
+                        .deepseek
+                        .get_or_insert_default()
+                        .model = value;
+                },
+                json_path: Some("edit_predictions.deepseek.model"),
+            }),
+            metadata: Some(Box::new(SettingsFieldMetadata {
+                placeholder: Some("deepseek-chat"),
                 ..Default::default()
             })),
             files: USER,

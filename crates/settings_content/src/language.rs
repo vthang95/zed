@@ -1,4 +1,4 @@
-use std::{num::NonZeroU32, path::Path};
+use std::num::NonZeroU32;
 
 use collections::{HashMap, HashSet};
 use schemars::JsonSchema;
@@ -88,6 +88,7 @@ pub enum EditPredictionProvider {
     Ollama,
     OpenAiCompatibleApi,
     Mercury,
+    DeepSeek,
 }
 
 impl EditPredictionProvider {
@@ -99,7 +100,8 @@ impl EditPredictionProvider {
             | EditPredictionProvider::Codestral
             | EditPredictionProvider::Ollama
             | EditPredictionProvider::OpenAiCompatibleApi
-            | EditPredictionProvider::Mercury => false,
+            | EditPredictionProvider::Mercury
+            | EditPredictionProvider::DeepSeek => false,
         }
     }
 
@@ -109,6 +111,7 @@ impl EditPredictionProvider {
             EditPredictionProvider::Copilot => Some("GitHub Copilot"),
             EditPredictionProvider::Codestral => Some("Codestral"),
             EditPredictionProvider::Mercury => Some("Mercury"),
+            EditPredictionProvider::DeepSeek => Some("DeepSeek"),
             EditPredictionProvider::None => None,
             EditPredictionProvider::Ollama => Some("Ollama"),
             EditPredictionProvider::OpenAiCompatibleApi => Some("OpenAI-Compatible API"),
@@ -133,12 +136,12 @@ pub struct EditPredictionSettingsContent {
     pub copilot: Option<CopilotSettingsContent>,
     /// Settings specific to Codestral.
     pub codestral: Option<CodestralSettingsContent>,
+    /// Settings specific to DeepSeek.
+    pub deepseek: Option<DeepSeekSettingsContent>,
     /// Settings specific to Ollama.
     pub ollama: Option<OllamaEditPredictionSettingsContent>,
     /// Settings specific to using custom OpenAI-compatible servers for edit prediction.
     pub open_ai_compatible_api: Option<CustomEditPredictionProviderSettingsContent>,
-    /// The directory where manually captured edit prediction examples are stored.
-    pub examples_dir: Option<Arc<Path>>,
     /// Controls whether Zed may collect training data when using Zed's Edit Predictions.
     /// Data is only ever captured for files in projects that are detected as open source.
     ///
@@ -159,7 +162,7 @@ pub struct CustomEditPredictionProviderSettingsContent {
     /// The prompt format to use for completions. Set to `""` to have the format be derived from the model name.
     ///
     /// Default: ""
-    pub prompt_format: Option<EditPredictionPromptFormat>,
+    pub prompt_format: Option<EditPredictionPromptFormatContent>,
     /// The name of the model.
     ///
     /// Default: ""
@@ -185,11 +188,12 @@ pub struct CustomEditPredictionProviderSettingsContent {
     strum::VariantNames,
 )]
 #[serde(rename_all = "snake_case")]
-pub enum EditPredictionPromptFormat {
+pub enum EditPredictionPromptFormatContent {
     #[default]
     Infer,
     Zeta,
     Zeta2,
+    Zeta2_1,
     CodeLlama,
     StarCoder,
     DeepseekCoder,
@@ -237,6 +241,23 @@ pub struct CodestralSettingsContent {
     pub api_url: Option<String>,
 }
 
+#[with_fallible_options]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, MergeFrom, PartialEq)]
+pub struct DeepSeekSettingsContent {
+    /// Model to use for completions.
+    ///
+    /// Default: "deepseek-chat"
+    pub model: Option<String>,
+    /// Maximum tokens to generate.
+    ///
+    /// Default: 256
+    pub max_tokens: Option<u32>,
+    /// Api URL to use for completions.
+    ///
+    /// Default: "https://api.deepseek.com/beta"
+    pub api_url: Option<String>,
+}
+
 /// Ollama model name for edit predictions.
 #[with_fallible_options]
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, MergeFrom, PartialEq, Eq)]
@@ -280,7 +301,7 @@ pub struct OllamaEditPredictionSettingsContent {
     /// The prompt format to use for completions. Set to `""` to have the format be derived from the model name.
     ///
     /// Default: ""
-    pub prompt_format: Option<EditPredictionPromptFormat>,
+    pub prompt_format: Option<EditPredictionPromptFormatContent>,
 }
 
 /// Controls whether Zed collects training data when using Zed's Edit Predictions.
